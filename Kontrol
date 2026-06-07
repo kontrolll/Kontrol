@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Kontrol HP</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; margin: 0; }
+        button { padding: 15px 30px; font-size: 16px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-kunci { background: #ff3b30; color: white; }
+        .btn-buka { background: #34c759; color: white; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333; }
+        .hidden { display: none !important; }
+        
+        /* Style untuk layar kunci penuh di HP adik */
+        #lock-screen { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #000000; 
+            z-index: 9999; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+        }
+    </style>
+</head>
+<body>
+
+    <h1>HP Control Panel</h1>
+    <hr style="border: 1px solid #333;"><br>
+
+    <div id="mode-selection" class="card">
+        <h3>Pilih Mode Perangkat Ini:</h3>
+        <button onclick="pilihMode('kakak')" style="background: #007bff; color:white;">Sebagai Kakak (Admin)</button>
+        <button onclick="pilihMode('adik')" style="background: #ff9500; color:white;">Sebagai Adik (Target)</button>
+    </div>
+
+    <div id="panel-kakak" class="card hidden">
+        <h2>Menu Kendali Kakak</h2>
+        <p>Status HP Adik Saat Ini: <b id="status-text">Memuat...</b></p>
+        <button class="btn-kunci" onclick="setKunci(true)">KUNCI HP ADIK</button>
+        <button class="btn-buka" onclick="setKunci(false)">BUKA HP ADIK</button>
+    </div>
+
+    <div id="panel-adik" class="card hidden">
+        <h2>Mode Pemantauan Adik</h2>
+        <p>Aplikasi ini sedang berjalan menjaga HP-mu secara latar belakang...</p>
+        <p style="color: #888; font-size: 12px;">Jangan tutup halaman ini agar kakak tetap bisa memantau.</p>
+    </div>
+
+    <div id="lock-screen" class="hidden">
+        <h1 style="color: #ff3b30; font-size: 32px; margin-bottom: 5px;">WAKTU HABIS! 🛑</h1>
+        <p style="font-size: 18px; color: #ccc; padding: 0 20px; margin-bottom: 30px;">HP kamu dikunci oleh Kakak. Ayo istirahat atau belajar dulu!</p>
+        
+        <button onclick="setKunci(false)" style="background: #222; color: #555; font-size: 12px; padding: 5px 10px;">Emergency Unlock</button>
+    </div>
+
+    <script>
+        // 1. KONFIGURASI FIREBASE milikmu
+        const firebaseConfig = {
+            databaseURL: "https://jarak-jauh-195e4-default-rtdb.asia-southeast1.firebasedatabase.app/" 
+        };
+        
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // 2. FUNGSI PILIH MODE APP
+        function pilihMode(mode) {
+            document.getElementById('mode-selection').classList.add('hidden');
+            if (mode === 'kakak') {
+                document.getElementById('panel-kakak').classList.remove('hidden');
+                
+                // Set awal ke false di Firebase agar database tidak kosong/null saat pertama kali dipakai
+                database.ref('/').update({ status_kunci: false });
+                
+                aktifkanLogikaKakak();
+            } else {
+                document.getElementById('panel-adik').classList.remove('hidden');
+                aktifkanLogikaAdik();
+            }
+        }
+
+        // 3. LOGIKA UNTUK HP KAKAK
+        function aktifkanLogikaKakak() {
+            // Pantau status di database untuk ditampilkan teksnya di layar kakak
+            database.ref('status_kunci').on('value', (snapshot) => {
+                const status = snapshot.val();
+                document.getElementById('status-text').innerText = status ? "TERKUNCI" : "TERBUKA";
+                document.getElementById('status-text').style.color = status ? "#ff3b30" : "#34c759";
+            });
+        }
+
+        function setKunci(boolValue) {
+            // Mengubah nilai status_kunci di Firebase secara real-time
+            database.ref('/').update({ status_kunci: boolValue });
+        }
+
+        // 4. LOGIKA UNTUK HP ADIK
+        function aktifkanLogikaAdik() {
+            // Pantau secara real-time. Layar mengunci HANYA jika status_kunci bernilai TRUE asli
+            database.ref('status_kunci').on('value', (snapshot) => {
+                const isLocked = snapshot.val();
+                const lockScreen = document.getElementById('lock-screen');
+                
+                if (isLocked === true) {
+                    lockScreen.classList.remove('hidden');
+                } else {
+                    lockScreen.classList.add('hidden');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+
